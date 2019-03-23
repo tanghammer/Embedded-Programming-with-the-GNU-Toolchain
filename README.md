@@ -3,10 +3,9 @@
 <vijaykumar@bravegnu.org>
 
 # 目录
-1. [介绍](##1.介绍)
-2. [建立ARM实验室](##2.建立ARM实验室)
-	2.1.[Qemu ARM](###2.1.Qemu-ARM)
-	2.1.[在Debian中安装Qemu](###2.2.在Debian中安装Qemu)
+1. [介绍](#%201.介绍)
+2. [建立ARM实验室](##%202.建立ARM实验室)
+3. [Hello ARM](##%203.Hello%%ARM)
 
 
 
