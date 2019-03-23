@@ -3,9 +3,9 @@
 <vijaykumar@bravegnu.org>
 
 # 目录
-1. [介绍](#%201.介绍)
-2. [建立ARM实验室](##%202.建立ARM实验室)
-3. [Hello ARM](##%203.Hello%%ARM)
+1. [介绍](1介绍)
+2. [建立ARM实验室](#2建立arm实验室)
+3. [Hello ARM](#3hello-arm)
 
 
 
