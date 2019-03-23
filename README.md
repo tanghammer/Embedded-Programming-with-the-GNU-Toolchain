@@ -320,6 +320,7 @@ stop:   b stop
 connex板有一个64 MB的RAM，从地址`0xA0000000`开始，其中可以存储变量。connex板的内存映射如下图所示。
 
 **Figure 1. Memory Map**
+
 ![](http://www.bravegnu.org/gnu-eprog/flash-ram-mm.png)
 
 必须进行必要的设置才能将变量放在这个地址。要理解必须做什么设置，必须理解汇编器和链接器的角色。
