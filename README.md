@@ -328,6 +328,7 @@ connex板有一个64 MB的RAM，从地址`0xA0000000`开始，其中可以存储
 当编写一个多源文件的程序时，每个文件被单独汇编为目标文件。链接器将这些目标文件组合起来形成最终的可执行文件。
 
 **Figure 2. Role of the Linker**
+
 ![](http://www.bravegnu.org/gnu-eprog/linker.png)
 
 当组合目标文件在一起时，链接器执行了如下操作。
