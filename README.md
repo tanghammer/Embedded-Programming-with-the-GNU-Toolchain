@@ -25,6 +25,9 @@
 	
 [5.使用RAM](#5使用ram)
 
+[6.链接器](#6链接器)
+* [6.1符号解析](#61符号解析)
+
 # 1.介绍
 GNU工具链越来越多地用于深度嵌入式软件开发。这种类型的软件开发也称为独立C语言编程和裸机C语言编程。独立的C语言编程带来了新的问题，处理这些问题需要对GNU工具链有更深入的理解。GNU工具链的手册提供了关于工具链的优秀信息，但是是从工具链的角度，而不是从问题的角度。不管怎样，手册就是这样写的。其结果是对常见问题的答案分散在各地，GNU工具链的新用户感到困惑。
 
@@ -315,5 +318,61 @@ stop:   b stop
 存储前面示例程序的闪存是一种EEPROM。它是一个有用的辅助存储，就像硬盘一样，但是不方便在Flash中存储变量。变量应该存储在RAM中，这样就可以很容易地修改它们。
 
 connex板有一个64 MB的RAM，从地址`0xA0000000`开始，其中可以存储变量。connex板的内存映射如下图所示。
+
 **Figure 1. Memory Map**
-![](https://github.com/bravegnu/gnu-eprog/blob/master/flash-ram-mm.dia)
+![](http://www.bravegnu.org/gnu-eprog/flash-ram-mm.png)
+
+必须进行必要的设置才能将变量放在这个地址。要理解必须做什么设置，必须理解汇编器和链接器的角色。
+
+# 6.链接器
+当编写一个多源文件的程序时，每个文件被单独汇编为目标文件。链接器将这些目标文件组合起来形成最终的可执行文件。
+
+**Figure 2. Role of the Linker**
+![](http://www.bravegnu.org/gnu-eprog/linker.png)
+
+当组合目标文件在一起时，链接器执行了如下操作。
+1. 符号解析
+2. 重定位
+
+在本节中，我们将详细研究这些操作。
+## 6.1符号解析
+在单文件程序中，在生成目标文件时，所有对标签的引用都由汇编器用它们的对应地址替换。但在多文件程序中，如果有对另一个文件中定义的标签的任何引用，则汇编器将这些引用标记为“未解析(unresolved)”。当这些目标文件传递给链接器时，链接器将从其他目标文件确定这些引用的值，并使用正确的值对代码进行调整（patch）。
+
+`sum of array`示例被分成两个文件，以演示链接器执行符号解析。这两个文件将被汇编起来，并检查它们的符号表，以显示未解析引用的存在。
+
+文件`sum-sub.s`包含`sum`子程序，文件`main.s`传入所需的参数调用子程序。这些文件的源代码如下所示。
+
+**Listing 4. main.s - Subroutine Invocation**
+```asm
+        .text
+        b start                 @ Skip over the data
+arr:    .byte 10, 20, 25        @ Read-only array of bytes
+eoa:                            @ Address of end of array + 1
+
+        .align
+start:
+        ldr   r0, =arr          @ r0 = &arr
+        ldr   r1, =eoa          @ r1 = &eoa
+
+        bl    sum               @ Invoke the sum subroutine
+
+stop:   b stop
+```
+**Listing 5. sum-sub.s - Subroutine Definition**
+```asm
+        @ Args
+        @ r0: Start address of array
+        @ r1: End address of array
+        @
+        @ Result
+        @ r3: Sum of Array
+
+        .global sum
+
+sum:    mov   r3, #0            @ r3 = 0
+loop:   ldrb  r2, [r0], #1      @ r2 = *r0++    ; Get array element
+        add   r3, r2, r3        @ r3 += r2      ; Calculate sum
+        cmp   r0, r1            @ if (r0 != r1) ; Check if hit end-of-array
+        bne   loop              @    goto loop  ; Loop
+        mov   pc, lr            @ pc = lr       ; Return when done
+```
