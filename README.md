@@ -19,7 +19,13 @@
 * [4.1.数组求和](#41数组求和)
 	* [4.1.1. .byte指令](#411-byte指令)
 	* [4.1.2. .align指令](#412-align指令)
-## 1.介绍
+* [4.2.字符串长度](#42字符串长度)
+	* [4.2.1. .asciz 指令](#421-asciz指令)
+	* [4.1.2. .align指令](#412-align指令)
+	
+[5.使用RAM](#5使用ram)
+
+# 1.介绍
 GNU工具链越来越多地用于深度嵌入式软件开发。这种类型的软件开发也称为独立C语言编程和裸机C语言编程。独立的C语言编程带来了新的问题，处理这些问题需要对GNU工具链有更深入的理解。GNU工具链的手册提供了关于工具链的优秀信息，但是是从工具链的角度，而不是从问题的角度。不管怎样，手册就是这样写的。其结果是对常见问题的答案分散在各地，GNU工具链的新用户感到困惑。
 
 本教程试图通过从问题的角度解释这些工具来弥补这一差距。希望这能使更多的人在他们的嵌入式项目中使用GNU工具链。
@@ -30,18 +36,18 @@ GNU工具链越来越多地用于深度嵌入式软件开发。这种类型的�
 
 但是为了方便读者，附录中列出了常用的ARM指令。
 
-## 2.建立ARM实验室
+# 2.建立ARM实验室
 本节展示如何使用Qemu和GNU工具链在您的PC中设置一个简单的ARM开发和测试环境。Qemu是一个机器模拟器，能够模拟各种机器，包括基于ARM的机器。您可以编写ARM汇编程序，使用GNU工具链编译它们，并在Qemu中执行和测试它们。
-### 2.1.Qemu ARM
+## 2.1.Qemu ARM
 Qemu将用于模拟Gumstix基于PXA255的connex板。您应该至少拥有0.9.1版本的Qemu来使用本教程。
 
 PXA255有一个ARMv5TE指令集的ARM内核。PXA255也有几个片上外设。本教程将介绍一些外围设备。
-### 2.2.在Debian中安装Qemu
+## 2.2.在Debian中安装Qemu
 本教程要求qemu版本0.9.1或更高。Debian Squeeze/Wheezy中提供的qemu包满足这一要求。使用`apt-get`安装`qemu`。
 
 	$ apt-get install qemu
 
-### 2.3.安装ARM GNU工具链
+## 2.3.安装ARM GNU工具链
 
 1. CodeSourcery (Mentor Graphics的一部分)提供了可用于各种体系架构的GNU工具链。下载用于ARM的GNU工具链，可从：
 	http://www.mentor.com/embedded-software/sourcery-tools/sourcery-codebench/editions/lite-edition/
@@ -59,7 +65,7 @@ PXA255有一个ARMv5TE指令集的ARM内核。PXA255也有几个片上外设。�
 
 4. 在`.bashrc`中添加并导出`PATH`。
 
-## 3.Hello ARM
+# 3.Hello ARM
 在本节中，您将学习如何汇编一个简单的ARM程序，并用Qemu模拟connex裸机板进行测试。
 
 汇编程序源文件由一系列语句组成，每行一个。每个语句都具有以下格式。
@@ -93,12 +99,13 @@ stop:   b stop               @ Infinite loop to stop execution
 ```
 `.text`是一个汇编器指令，是说接下来的指令必须汇编到代码段（`code section`）,而不是数据段（`data section`）。`段(sections)`这个概念会在后面的教程中详细介绍。
 
-### 3.1.构建二进制文件
+## 3.1.构建二进制文件
 将程序保存至文件`add.s`中。要汇编此文件，需要调用GNU工具链的汇编器`as`,命令如下。
 
 	$ arm-none-eabi-as -o add.o add.s
 
 -o选项指定了输出文件的名字。
+>![](https://github.com/bravegnu/gnu-eprog/blob/master/images/note.png)
 >注意：交叉工具链总是以构建它们的目标体系结构为前缀，以避免与主机工具链的名称冲突。为了可读性，我们将在文本中引用不带前缀的工具。
 
 要生成可执行文件，需要调用GNU工具链的连接器`ld`，命令如下。
@@ -153,7 +160,7 @@ GNU工具链的`objcopy`命令能用于转换不同的目标文件格式。常�
 	$ ls -la add.bin 
 	-rwxrwxr-x 1 thomas thomas 16 3月  23 17:56 add.bin
 
-### 3.2.在Qemu里面执行
+## 3.2.在Qemu里面执行
 当ARM处理器复位时，它就从`0x0`地址开始执行。在`connex板`上有一个16MB的Flash位于地址`0x0`。在Flash开始处的指令将被执行。
 
 当用`qemu`仿真connex板时，必须指定将哪个文件当作Flash使用。Flash文件给谁非常简单。为了从Flash中的地址X获取字节，`qemu`从文件中的偏移量X读取字节。事实上，这与二进制文件格式相同。
@@ -187,7 +194,7 @@ GNU工具链的`objcopy`命令能用于转换不同的目标文件格式。常�
 
 注意寄存器R02中的值。寄存器包含加法的结果，并且应该与期望值9匹配。
 
-### 3.3.更多的监视器命令
+## 3.3.更多的监视器命令
 表列出了一些有用的qemu监视器命令。
 
 命令|用途
@@ -215,12 +222,12 @@ system_reset|复位系统
 	0x00000008:  add        r2, r1, r0
 	0x0000000c:  b  0xc
 
-## 4.更多的汇编器指令
+# 4.更多的汇编器指令
 在此章节，我们通过2个示例程序介绍常用的汇编器指令。
 1. 对数组求和的程序
 2. 计算字符串长度的程序
 
-### 4.1.数组求和
+## 4.1.数组求和
 下面的代码对一个数组求和，并将结果存储在r3中。
 **Listing 2. Sum an Array**
 ```asm
@@ -242,7 +249,7 @@ stop:   b stop
 ```
 该代码引入了两个新的汇编器指令--`.byte`和`.align`。下面将描述这些汇编器指令。
 
-#### 4.1.1. .byte指令
+### 4.1.1. .byte指令
 `.byte`的字节大小参数被汇编成内存中的连续字节。对于存储16位值和32位值，有类似的`.2byte`和`.4byte`指令。一般语法如下所示。
 
 	.byte   exp1, exp2, ...
@@ -259,5 +266,54 @@ stop:   b stop
 	dummy:    .4byte 0xDEADBEEF
 	nalpha:   .byte 'Z' - 'A' + 1
 
-#### 4.1.2. .align指令
+### 4.1.2. .align指令
 ARM要求指令出现在32位对齐的内存位置。指令中4个字节中的第一个字节的地址应该是4的倍数。要做到这一点，可以使用`.align`指令插入填充字节，直到下一个字节地址是4的倍数。只有当在代码中插入数据字节或半字时才需要这样做。
+## 4.2.字符串长度
+下面的代码计算字符串的长度，并将长度存储在寄存器r1中。
+**Listing 3. String Length**
+```asm
+        .text
+        b start
+
+str:    .asciz "Hello World"
+
+        .equ   nul, 0
+
+        .align
+start:  ldr   r0, =str          @ r0 = &str
+        mov   r1, #0
+
+loop:   ldrb  r2, [r0], #1      @ r2 = *(r0++)
+        add   r1, r1, #1        @ r1 += 1
+        cmp   r2, #nul          @ if (r1 != nul)
+        bne   loop              @    goto loop
+
+        sub   r1, r1, #1        @ r1 -= 1
+stop:   b stop
+```
+该代码引入了两个新的汇编器指令- `.asciz`和`.equ`。下面描述汇编器指令。
+
+### 4.2.1. .asciz指令
+`.asciz`指令接受字符串文本作为参数。字符串文字是双引号中的字符序列。字符串文字被汇编成连续的内存位置。汇编器在每个字符串后面自动插入一个`nul`字符(\0字符)。
+
+`'ascii`指令与`.asciz`相同，但是汇编器不会在每个字符串后面插入`nul`字符。
+### 4.2.2. .equ指令
+汇编器维护称为符号表的东西。符号表将标签名称映射到地址。每当汇编器遇到标签定义时，汇编器在符号表中做一个入口点。每当汇编器遇到标签引用时，它就用符号表中对应地址替换标签。
+
+使用汇编器的指令`.equ`，还可以手动插入符号表中的条目，将名称映射到不一定是地址的值。每当汇编器遇到这些名称时，它就用它们对应的值替换它们。这些名称和标签名称一起称为符号名。
+
+该指令的一般语法如下所示。
+```asm
+.equ name, expression
+```
+`name`是一个符号名称，并且具有与标签名称相同的限制。`expression`可以是简单的字符，也可以是`.byte`指令解释的表达式。
+>![](https://github.com/bravegnu/gnu-eprog/blob/master/images/note.png)
+>注意：
+>与`.byte`指令不同，`.equ`指令本身不分配任何内存。它们只是在符号表中创建条目。
+
+# 5.使用RAM
+存储前面示例程序的闪存是一种EEPROM。它是一个有用的辅助存储，就像硬盘一样，但是不方便在Flash中存储变量。变量应该存储在RAM中，这样就可以很容易地修改它们。
+
+connex板有一个64 MB的RAM，从地址`0xA0000000`开始，其中可以存储变量。connex板的内存映射如下图所示。
+**Figure 1. Memory Map**
+![](https://github.com/bravegnu/gnu-eprog/blob/master/flash-ram-mm.dia)
