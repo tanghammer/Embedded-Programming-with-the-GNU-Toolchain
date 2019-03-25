@@ -29,7 +29,20 @@
 * [6.1符号解析](#61符号解析)
 * [6.2.重定位](#62重定位)
 	* [6.2.1.段合并](#621段合并)
-	* [6.2.2.段布局](#622段布局)
+	* [6.2.2.段排布](#622段排布)
+
+[7.链接脚本文件](#7链接脚本文件)
+* [7.1.链接脚本示例](#71链接脚本示例)
+
+[8.数据位于RAM中示例](#8数据位于ram中示例)
+* [8.1.RAM是易失性的](#81ram是易失性的)
+* [8.2.指定加载地址](#82指定加载地址)
+* [8.3.拷贝`.data`至RAM](#83拷贝data至ram)
+
+[9.异常处理](#9异常处理)
+
+[10.C启动代码](#10c启动代码)
+* [10.1.栈](#101栈)
 
 # 1.介绍
 GNU工具链越来越多地用于深度嵌入式软件开发。这种类型的软件开发也称为独立C语言编程和裸机C语言编程。独立的C语言编程带来了新的问题，处理这些问题需要对GNU工具链有更深入的理解。GNU工具链的手册提供了关于工具链的优秀信息，但是是从工具链的角度，而不是从问题的角度。不管怎样，手册就是这样写的。其结果是对常见问题的答案分散在各地，GNU工具链的新用户感到困惑。
@@ -418,7 +431,7 @@ loop:   ldrb  r2, [r0], #1      @ r2 = *r0++    ; Get array element
 重定位是改变标签已分配地址的过程。这还包括调整所有标签的引用地址以使对应上最新分配的地址。重定位主要基于以下两个原因：
 
 1. 段合并
-2. 段布局
+2. 段排布
 
 要理解重新定位的过程，理解段的概念是必不可少的。
 
@@ -459,12 +472,12 @@ loop:   ldrb  r2, [r0], #1      @ r2 = *r0++    ; Get array element
 
 ❶ ❷ `loop`符号在`sum-sub.o`中地址是`0x4`,在`sum.elf`中地址是`0x28`。这是因为`sum-sub.o`的`.text`段恰好放置在`main.o`的`.text`之后。
 
-### 6.2.2.段布局
+### 6.2.2.段排布
 当一个程序被汇编后，它的每个段都假定从0地址开始。因此，标签被分配的值是相对于段的起始处的。最后可执行文件生成时，段被放置到某个地址X上。并且所有对该部分中定义的标签的引用都被加上一个X的偏移，因此它们指向新的位置。
 
-每个段在内存中的特定位置的布局，对段中每个标签引用的调整都是由链接器来完成的。
+每个段在内存中的特定位置的排布，对段中每个标签引用的调整都是由链接器来完成的。
 
-通过查看目标文件的符号表和相应的可执行文件，可以看到段布局的效果。单源文件的`sum of array`程序可以用来说明节的位置。为了更清楚，我们将把`.tex`t段放在地址`0x100`处。
+通过查看目标文件的符号表和相应的可执行文件，可以看到段排布的效果。单源文件的`sum of array`程序可以用来说明节的位置。为了更清楚，我们将把`.tex`t段放在地址`0x100`处。
 
 	$ arm-none-eabi-as -o sum.o sum.s
 	$ arm-none-eabi-nm -n sum.o
@@ -491,8 +504,373 @@ loop:   ldrb  r2, [r0], #1      @ r2 = *r0++    ; Get array element
 
 ❸ `.text`段中标签的地址被从地址`0x100`处开始重新分配，所有标签引用都被调整反应了这一点。
 
-段合并、段布局的过程如下图所示。
+段合并、段排布的过程如下图所示。
 
 **Figure 4. Section Merging and Placement**
 
 ![](http://www.bravegnu.org/gnu-eprog/relocation.png)
+
+# 7.链接脚本文件
+如前一节所述，段的合并和段的排布是由链接器完成的。编程人员可以通过一个链接脚本文件控制段如何合并以及它们在内存中的位置。下面是一个非常简单的链接脚本。
+
+**Listing 6. Basic linker script**
+
+```c
+SECTIONS { ❶
+        . = 0x00000000; ❷
+        .text : { ❸
+                abc.o (.text);
+                def.o (.text);
+        } ❹
+}
+```
+❶ `SECTIONS`命令是最重要的链接器命令，它指定了如何合并这些段以及将它们放置在什么位置。
+
+❷ 在`SECTIONS`命令之后的语句块，`.(dot)`表示位置计数器。位置总是初始化为`0x00000000`。可以通过给它赋一个新的值来修改它。将开始处的位置计数器赋值为`0x00000000`是多余的。
+
+❸ ❹ 链接脚本的这个部分指定了，输入文件`abc.o`、`def.o`的`.text`段将被放置到输出文件的`.text`段。
+
+通过使用通配符*而不是单独指定文件名，可以进一步简化和通用化链接器脚本。
+
+**Listing 7. Wildcard in linker scripts**
+
+```c
+SECTIONS {
+        . = 0x00000000;
+        .text : { * (.text); }
+}
+```
+
+如何程序既包含`.text`段也包含`.data`段，`.data`段的合并和位置可以像下面这样指定。
+
+**Listing 8. Multiple sections in linker scripts**
+
+```c
+SECTIONS {
+         . = 0x00000000;
+         .text : { * (.text); }
+
+         . = 0x00000400;
+         .data : { * (.data); }
+}
+```
+
+此处`.text`段被放置到地址`0x00000000`处，`.data`被放置到地址`0x00000400`处。注意，如果位置计数器未分配不同的值，则`.text`和`.data`段会被放置到相邻的存储位置。
+
+# 7.1.链接脚本示例
+为了演示链接器脚本的使用，我们将使用**Listing 8. Multiple sections in linker scripts**中所示的链接器脚本来控制程序的`.text`和`.data`段的排布。为此，我们将使用稍微修改过的`sum of array`程序。代码如下所示。
+
+```asm
+        .data
+arr:    .byte 10, 20, 25        @ Read-only array of bytes
+eoa:                            @ Address of end of array + 1
+
+        .text
+start:
+        ldr   r0, =eoa          @ r0 = &eoa
+        ldr   r1, =arr          @ r1 = &arr
+        mov   r3, #0            @ r3 = 0
+loop:   ldrb  r2, [r1], #1      @ r2 = *r1++
+        add   r3, r2, r3        @ r3 += r2
+        cmp   r1, r0            @ if (r1 != r2)
+        bne   loop              @    goto loop
+stop:   b stop
+```
+
+这里唯一的变化是数组现在位于`.data`部分。还要注意，不需要使用额外的分支指令跳过数据部分，因为链接器脚本将适当地放置`.text`段和`.data`段。因此，语句可以以任何方便的方式放置在程序中，而链接脚本将负责将这些段正确地放置在内存中。
+
+当一个程序被链接时，链接脚本作为一个输入传给链接器，如下命令。
+
+```shell
+$ arm-none-eabi-as -o sum-data.o sum-data.s
+$ arm-none-eabi-ld -T sum-data.lds -o sum-data.elf sum-data.o
+```
+
+选项`-T sum-data.lds`指定了`sum-data.lds`将作为链接脚本。转储符号表，将使您了解如何在内存中放置段。
+
+```shell
+$ arm-none-eabi-nm -n sum-data.elf
+00000000 t start
+0000000c t loop
+0000001c t stop
+00000400 d arr
+00000403 d eoa
+```
+
+从符号表中可以明显看出`·text`段是从地址0x0开始放置的，`.data`段是从地址0x400开始放置的。
+
+# 8.数据位于RAM中示例
+现在我们知道了如何编写链接器脚本，我们将尝试编写一个程序，并将`.data`部分放在RAM中。
+
+将`add`程序修改为从`RAM`加载两个值，将它们相加并将结果存储回RAM。两个值和结果存放在`.data`段。
+
+**Listing 9. Add Data in RAM**
+
+```asm
+        .data
+val1:   .4byte 10               @ First number
+val2:   .4byte 30               @ Second number
+result: .4byte 0                @ 4 byte space for result
+
+        .text
+        .align
+start:
+        ldr   r0, =val1         @ r0 = &val1
+        ldr   r1, =val2         @ r1 = &val2
+
+        ldr   r2, [r0]          @ r2 = *r0
+        ldr   r3, [r1]          @ r3 = *r1
+
+        add   r4, r2, r3        @ r4 = r2 + r3
+
+        ldr   r0, =result       @ r0 = &result
+        str   r4, [r0]          @ *r0 = r4
+
+stop:   b stop
+```
+
+使用下面的链接脚本。
+
+```c
+SECTIONS {
+        . = 0x00000000;
+        .text : { * (.text); }
+
+        . = 0xA0000000;
+        .data : { * (.data); }
+}
+```
+
+elf文件的符号表转储如下所示。
+
+```shell
+$ arm-none-eabi-nm -n add-mem.elf
+00000000 t start
+0000001c t stop
+a0000000 d val1
+a0000001 d val2
+a0000002 d result
+```
+
+链接脚本似乎已经解决了在RAM中放置`.data`段的问题。但是等等，解决方案还没有完成!
+
+## 8.1.RAM是易失性的
+RAM是易失性的存储介质，因此不可能在开机时直接在RAM中使数据。（要从非易失性的存储介质复制过来）
+
+所有代码和数据都应该在开机前存储在Flash中。在启动时，启动代码应该将数据从Flash复制到RAM，然后继续执行程序。因此，程序的`.data`段有两个地址，Flash中的加载地址和RAM中的运行时地址。
+
+>![](http://www.bravegnu.org/gnu-eprog/images/tip.png)**Tip**
+>
+>在`ld`的说法中，加载地址称为LMA(Load Memory Address),`run-time`地址称为VMA(Virtual Memory Address)。
+
+为了让程序正常运行，需要做下面2个修改。
+1. 链接器需要同时指定`.data`段的加载地址和运行地址。
+2. 一段用于将`.data`段从Flash（加载地址）拷贝至RAM(运行地址)的代码。
+
+## 8.2.指定加载地址
+run-time地址应该用于确定标签的地址。在前面的链接脚本中，我们为`.data`段指定了运行地址，但是加载地址没有显式指定，而是默认为运行时地址。对于前面的示例，这是可以的，因为程序是直接从Flash执行的。但是，如果要在执行期间将数据放在RAM中，那么加载地址应该与Flash对应，而运行时地址应该与RAM对应。
+
+可以使用AT关键字指定与运行地址不同的加载地址。修改后的链接器脚本如下所示。
+
+```c
+SECTIONS {
+        . = 0x00000000;
+        .text : { * (.text); }
+        etext = .; ❶
+
+        . = 0xA0000000;
+        .data : AT (etext) { * (.data); } ❷
+}
+```
+
+❶ 可以在`SECTIONS`命令中通过为符号赋值来动态创建符号。这里，`etext`被赋值为该位置的位置计数器的值。`etext`包含代码段之后Flash中的下一个空闲位置的地址。稍后将使用它来指定`.data`段在Flash中的位置。注意`etext`本身不会分配任何内存，它只是符号表中的一个条目。
+
+❷ AT关键字指定`.data`段的加载地址。地址或符号(其值是有效地址)可以作为参数传递给AT。这里`.data`的加载地址被指定为Flash中代码段之后的位置。
+
+## 8.3.拷贝`.data`至RAM
+
+要拷贝`.data`至RAM，需要下面的信息。
+
+1. data在Flash中的位置(`flash_sdata`)。
+2. data在RAM中的位置(`ram_sdata`)。
+3. `.data`段的大小(`data_size`)。
+
+有了这些信息，可以使用以下代码片段将数据从Flash复制到RAM。
+
+```asm
+        ldr   r0, =flash_sdata
+        ldr   r1, =ram_sdata
+        ldr   r2, =data_size
+
+copy:
+        ldrb  r4, [r0], #1
+        strb  r4, [r1], #1
+        subs  r2, r2, #1
+        bne   copy
+```
+
+可以稍微修改链接脚本以提供这些信息。
+
+```c
+SECTIONS {
+        . = 0x00000000;
+        .text : {
+              * (.text);
+        }
+        flash_sdata = .; ❶
+
+        . = 0xA0000000;
+        ram_sdata = .; ❷
+        .data : AT (flash_sdata) {
+              * (.data);
+        };
+        ram_edata = .; ❸
+        data_size = ram_edata - ram_sdata; ❹
+}
+```
+❶ Flash中，data开始于所有code之后。
+
+❷ RAM中，data开始于RAM的基址。
+
+❸❹ 获取数据的大小并不简单。数据大小根据RAM中数据开始和结束时的差值计算。在链接器脚本中允许使用简单的表达式。
+
+从Flash复制数据到RAM的add程序如下所示。
+
+**Listing 11. Add Data in RAM (with copy)**
+
+```asm
+        .data
+val1:   .4byte 10               @ First number
+val2:   .4byte 30               @ Second number
+result: .space 4                @ 1 byte space for result
+
+        .text
+
+        ;; Copy data to RAM.
+start:
+        ldr   r0, =flash_sdata
+        ldr   r1, =ram_sdata
+        ldr   r2, =data_size
+
+copy:
+        ldrb  r4, [r0], #1
+        strb  r4, [r1], #1
+        subs  r2, r2, #1
+        bne   copy
+
+        ;; Add and store result.
+        ldr   r0, =val1         @ r0 = &val1
+        ldr   r1, =val2         @ r1 = &val2
+
+        ldr   r2, [r0]          @ r2 = *r0
+        ldr   r3, [r1]          @ r3 = *r1
+
+        add   r4, r2, r3        @ r4 = r2 + r3
+
+        ldr   r0, =result       @ r0 = &result
+        str   r4, [r0]          @ *r0 = r4
+
+stop:   b stop
+```
+
+程序使用**Listing 10. Linker Script with Section Copy Symbols**中列出的链接脚本进行汇编和链接。程序在Qemu中执行和测试。
+
+```shell
+qemu-system-arm -M connex -pflash flash.bin -nographic -serial /dev/null
+(qemu) xp /4dw 0xA0000000
+a0000000:         10         30         40          0
+```
+
+>![](http://www.bravegnu.org/gnu-eprog/images/note.png)
+>**Note**
+>
+>在具有SDRAM的实际硬件中，不应该立即访问内存。在执行内存访问之前，必须对内存控制器进行初始化。我们的代码可以工作，因为模拟内存
+>不需要初始化内存控制器。
+
+# 9.异常处理
+到目前为止给出的示例有一个重大的错误。内存映射中的前8个words保留给异常向量。当异常发生时，PC指针被转移到这8个位置之一。异常及其异常向量地址如下表所示。
+
+>![](http://www.bravegnu.org/gnu-eprog/images/note.png)
+>**Note**
+>
+>异常向量具体是几个要看硬件架构，异常向量表是和具体硬件相关的。
+
+
+**Table 1. Exception Vector Addresses**
+
+Exception|Address
+:-:|:-:
+Reset|0x00
+Undefined Instruction|0x04
+Software Interrupt (SWI)|0x08
+Prefetch Abort|0x0C
+Data Abort|0x10
+Reserved, not used|0x14
+IRQ|0x18
+FIQ|0x1C
+
+
+这些位置应该包含一个分支语句，该分支语句将跳转至对应的异常处理程序。在我们目前看到的示例中，我们没有在异常向量地址处插入分支指令。我们没有遇到任何问题是因为这些异常没有发生。通过将上述程序与以下汇编代码链接，可以修复所有上述程序。
+
+```asm
+        .section "vectors"
+reset:  b     start
+undef:  b     undef
+swi:    b     swi
+pabt:   b     pabt
+dabt:   b     dabt
+        nop
+irq:    b     irq
+fiq:    b     fiq
+```
+
+只有reset异常向量被定向到和它自己标签不同的地址`start`。所有其他异常向量都被定向到相同的标签地址。因此，如果发生除reset之外的任何异常，处理器将在相同的位置死循环。然后可以通过调试器(在我们的例子中是monitor接口)查看pc的值来识别异常。
+
+为了确保这些指令位于异常向量地址，链接器脚本应该如下所示。
+
+```c
+SECTIONS {
+        . = 0x00000000;
+        .text : {
+                * (vectors);
+                * (.text);
+                ...
+        }
+        ...
+}
+```
+
+注意`vectors`段是如何放在其他代码之前的，以确保`vectors`段位于从0x0开始的地址。
+
+>**译者注：**
+>只有裸机程序才有加异常向量表的需求。在操作系统上跑的程序不用关心这些，它们由操作系统接管。
+
+# 10.C启动代码
+处理器刚复位时是不可能直接执行C代码的。因为与汇编语言不同，C程序需要满足一些基本的先决条件。本节将描述先决条件以及如何满足这些先决条件。
+
+我们将以`sum of array`的C程序为例。在本节结束时，我们将能够执行必要的设置，将控制转移到C代码并执行它。
+
+**Listing 12. Sum of Array in C**
+
+```c
+static int arr[] = { 1, 10, 4, 5, 6, 7 };
+static int sum;
+static const int n = sizeof(arr) / sizeof(arr[0]);
+
+int main()
+{
+        int i;
+
+        for (i = 0; i < n; i++)
+                sum += arr[i];
+}
+```
+在将执行逻辑转移到C代码之前，必须正确设置以下内容。
+
+1. 栈
+2. 全局变量
+	1. 已初始化的
+	2. 未初始化的
+3. 只读数据
+
+## 10.1.栈
