@@ -43,6 +43,9 @@
 
 [10.C启动代码](#10c启动代码)
 * [10.1.栈](#101栈)
+* [10.2.全局变量](#102全局变量)
+* [10.3.只读数据](#103只读数据)
+* [10.4.启动代码](#104启动代码)
 
 # 1.介绍
 GNU工具链越来越多地用于深度嵌入式软件开发。这种类型的软件开发也称为独立C语言编程和裸机C语言编程。独立的C语言编程带来了新的问题，处理这些问题需要对GNU工具链有更深入的理解。GNU工具链的手册提供了关于工具链的优秀信息，但是是从工具链的角度，而不是从问题的角度。不管怎样，手册就是这样写的。其结果是对常见问题的答案分散在各地，GNU工具链的新用户感到困惑。
@@ -845,7 +848,9 @@ SECTIONS {
 >**译者注：**
 >只有裸机程序才有加异常向量表的需求。在操作系统上跑的程序不用关心这些，它们由操作系统接管。
 
-# 10.C启动代码
+
+# 10.C语言启动代码
+
 处理器刚复位时是不可能直接执行C代码的。因为与汇编语言不同，C程序需要满足一些基本的先决条件。本节将描述先决条件以及如何满足这些先决条件。
 
 我们将以`sum of array`的C程序为例。在本节结束时，我们将能够执行必要的设置，将控制转移到C代码并执行它。
@@ -874,3 +879,206 @@ int main()
 3. 只读数据
 
 ## 10.1.栈
+C语言使用栈来存储本地（自动）变量，传递参数，存储返回地址等。所以在将控制权交给C代码之前，栈必须正确设置。
+
+栈在ARM架构中是非常灵活的，因为它完全由软件实现。不熟悉ARM架构的可以看看概述[Appendix C, ARM Stacks](http://www.bravegnu.org/gnu-eprog/arm-stacks.html)。
+
+为了确保不同编译器生成的代码具被互操作性（例如链接器的输入目标文件可以是由不同的编译器生成的）,ARM创建了[ARM Architecture Procedure Call Standard (AAPCS)](http://infocenter.arm.com/help/topic/com.arm.doc.ihi0042f/IHI0042F_aapcs.pdf)。用作栈指针的寄存器，栈增长的方向，AAPCS中都有阐述。依据AAPCS,寄存器R13用作栈指针。栈也被规定是满-递减的。
+
+放置全局变量和堆栈的一种方法如下图所示。
+
+**Figure 5. Stack Placement**
+
+![](http://www.bravegnu.org/gnu-eprog/stack.png)
+
+因此，在启动代码中所要做的就是将r13指向最高的RAM地址，这样堆栈就可以向下增长(指向较低的地址)。对于connex板，可以使用以下ARM指令来实现。
+
+```asm
+ldr sp, =0xA4000000
+```
+
+注意，汇编程序为r13寄存器提供了一个别名sp。
+
+>![](http://www.bravegnu.org/gnu-eprog/images/note.png)
+>**Note**
+>
+>地址`0xA4000000`并没有对应`RAM`,`RAM`结束地址是`0xA3FFFFFF`。但这没关系，因为堆栈是满递减的，在第一次push期间堆栈指针将先递减，变量值才被存储。
+
+## 10.2.全局变量
+编译C代码时，编译器将初始化的全局变量放在`.data`段。因此，与汇编一样，`.data`必须从Flash复制到RAM。
+
+C语言保证所有未初始化的全局变量都将初始化为零。当编译C程序时，一个名为`.bss`的独立段用于放置未初始化变量的描述。由于这些变量的值都是以0开头的，所以它们不必存储在Flash中。在将控件转移到C代码之前，必须将这些变量对应的内存位置初始化为零。
+
+## 10.3.只读数据
+GCC将标记为const的全局变量放在一个名为`.rodata`的独立段中。`.rodata`还用于存储字符串常量。
+
+由于`.rodata`段的内容不会被修改，所以可以放在Flash中。必须修改链接脚本以适应这种情况。
+
+## 10.4.启动代码
+现在我们知道了这些先决条件，就能创建链接脚本和启动代码。链接脚本**Listing 10 Linker Script with Section Copy Symbols**修改如下。
+
+1. `.bss`段排布
+2. `verctors`段排布
+3. `.rodata`段排布
+
+内存中，`.bss段`位于`.data`段之后。`.bss`段的起始和结束符号也都在链接脚本中创建。Flash中`.rodata`段紧跟着`.text`段放置 。下图展示了不同段的排布情况。
+
+**Figure 6. Section Placement**
+
+![](http://www.bravegnu.org/gnu-eprog/csections.png)
+
+**Listing 13. Linker Script for C code**
+
+```c
+SECTIONS {
+        . = 0x00000000;
+        .text : {
+              * (vectors);
+              * (.text);
+        }
+        .rodata : {
+              * (.rodata);
+        }
+        flash_sdata = .;
+
+        . = 0xA0000000;
+        ram_sdata = .;
+        .data : AT (flash_sdata) {
+              * (.data);
+        }
+        ram_edata = .;
+        data_size = ram_edata - ram_sdata;
+
+        sbss = .;
+        .bss : {
+             * (.bss);
+        }
+        ebss = .;
+        bss_size = ebss - sbss;
+}
+```
+
+启动代码有如下几个部分。
+
+1. 异常向量表
+2. 从Flash拷贝`.data`数据至RAM的代码
+3. 清零`.bss`段的代码
+4. 设置栈指针的代码
+5. 跳转至main的代码
+
+**Listing 14. C Startup Assembly**
+
+```asm
+        .section "vectors"
+reset:  b     start
+undef:  b     undef
+swi:    b     swi
+pabt:   b     pabt
+dabt:   b     dabt
+        nop
+irq:    b     irq
+fiq:    b     fiq
+
+        .text
+start:
+        @@ Copy data to RAM.
+        ldr   r0, =flash_sdata
+        ldr   r1, =ram_sdata
+        ldr   r2, =data_size
+
+        @@ Handle data_size == 0
+        cmp   r2, #0
+        beq   init_bss
+copy:
+        ldrb   r4, [r0], #1
+        strb   r4, [r1], #1
+        subs   r2, r2, #1
+        bne    copy
+
+init_bss:
+        @@ Initialize .bss
+        ldr   r0, =sbss
+        ldr   r1, =ebss
+        ldr   r2, =bss_size
+
+        @@ Handle bss_size == 0
+        cmp   r2, #0
+        beq   init_stack
+
+        mov   r4, #0
+zero:
+        strb  r4, [r0], #1
+        subs  r2, r2, #1
+        bne   zero
+
+init_stack:
+        @@ Initialize the stack pointer
+        ldr   sp, =0xA4000000
+
+        bl    main
+
+stop:   b     stop
+```
+
+要编译代码，不需要分别调用汇编器、编译器和链接器。gcc足够聪明，可以为我们一步完成。
+
+如前所述，我们将编译并执行**Listing 12, Sum of Array in C**所示的C代码。
+
+```shell
+$ arm-none-eabi-gcc -nostdlib -o csum.elf -T csum.lds csum.c startup.s
+```
+
+`-nostdlib`选项指定不链接标准C库。当链接到C库时，需要额外注意一点。在**Section 11, Using the C Library**会讨论。
+
+符号表的转储可以更好地描述这些东西在内存中是如何放置的。
+
+```shell
+$ arm-none-eabi-nm -n csum.elf
+00000000 t reset        ❶
+00000004 A bss_size
+00000004 t undef
+00000008 t swi
+0000000c t pabt
+00000010 t dabt
+00000018 A data_size
+00000018 t irq
+0000001c t fiq
+00000020 T main
+00000090 t start        ❷
+000000a0 t copy
+000000b0 t init_bss
+000000c4 t zero
+000000d0 t init_stack
+000000d8 t stop
+000000f4 r n            ❸
+000000f8 A flash_sdata
+a0000000 d arr          ❹
+a0000000 A ram_sdata
+a0000018 A ram_edata
+a0000018 A sbss
+a0000018 b sum          ❺
+a000001c A ebss
+```
+
+❶ `reset`，其余的异常向量从`0x0`开始放置。
+
+❷ 汇编代码位于8个异常向量之后(`8 * 4 = 32 = 0x20`)。
+
+❸ 只读数据n，放在Flash后的代码中。
+
+❹ 已初始化的数据arr(一个由6个整数组成的数组)位于RAM`0xA0000000`的开头。
+
+❺ 未初始化的数据sun放在已初始化的数据arr之后。(6 * 4 = 24 = 0x18)。
+
+要执行程序，将程序转换为`.bin`格式，在Qemu中执行，并转储位于`0xA0000018`的`sum`变量。
+
+```shell
+$ arm-none-eabi-objcopy -O binary csum.elf csum.bin
+$ dd if=csum.bin of=flash.bin bs=4096 conv=notrunc
+$ qemu-system-arm -M connex -pflash flash.bin -nographic -serial /dev/null
+(qemu) xp /6dw 0xa0000000
+a0000000:          1         10          4          5
+a0000010:          6          7
+(qemu) xp /1dw 0xa0000018
+a0000018:         33
+```
