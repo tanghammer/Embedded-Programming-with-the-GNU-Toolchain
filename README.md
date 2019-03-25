@@ -27,6 +27,9 @@
 
 [6.链接器](#6链接器)
 * [6.1符号解析](#61符号解析)
+* [6.2.重定位](#62重定位)
+	* [6.2.1.段合并](#621段合并)
+	* [6.2.2.段布局](#622段布局)
 
 # 1.介绍
 GNU工具链越来越多地用于深度嵌入式软件开发。这种类型的软件开发也称为独立C语言编程和裸机C语言编程。独立的C语言编程带来了新的问题，处理这些问题需要对GNU工具链有更深入的理解。GNU工具链的手册提供了关于工具链的优秀信息，但是是从工具链的角度，而不是从问题的角度。不管怎样，手册就是这样写的。其结果是对常见问题的答案分散在各地，GNU工具链的新用户感到困惑。
@@ -89,7 +92,9 @@ label:    instruction         @ comment
 * 指令可以是ARM指令集里面的指令或者汇编器的指令。汇编器的指令是给汇编器的命令。汇编器指令由`.`号打头。
 
 下面是一个非常简单的ARM汇编程序，实现2个数相加。
+
 **Listing 1. Adding Two Numbers**
+
 ```asm
         .text
 start:                       @ Label, not really required
@@ -208,6 +213,7 @@ xp /fmt addr|从addr转储物理内存
 system_reset|复位系统
 
 详细解释下`xp`命令。`fmt`参数指定如何显示内存内容。`fmt`的语法是`<count><format><size>`。
+
 **count**
 * 指定count个要转储的数据项。
 
@@ -232,7 +238,9 @@ system_reset|复位系统
 
 ## 4.1.数组求和
 下面的代码对一个数组求和，并将结果存储在r3中。
+
 **Listing 2. Sum an Array**
+
 ```asm
         .text
 entry:  b start                 @ Skip over the data
@@ -273,7 +281,9 @@ stop:   b stop
 ARM要求指令出现在32位对齐的内存位置。指令中4个字节中的第一个字节的地址应该是4的倍数。要做到这一点，可以使用`.align`指令插入填充字节，直到下一个字节地址是4的倍数。只有当在代码中插入数据字节或半字时才需要这样做。
 ## 4.2.字符串长度
 下面的代码计算字符串的长度，并将长度存储在寄存器r1中。
+
 **Listing 3. String Length**
+
 ```asm
         .text
         b start
@@ -306,10 +316,12 @@ stop:   b stop
 使用汇编器的指令`.equ`，还可以手动插入符号表中的条目，将名称映射到不一定是地址的值。每当汇编器遇到这些名称时，它就用它们对应的值替换它们。这些名称和标签名称一起称为符号名。
 
 该指令的一般语法如下所示。
+
 ```asm
 .equ name, expression
 ```
 `name`是一个符号名称，并且具有与标签名称相同的限制。`expression`可以是简单的字符，也可以是`.byte`指令解释的表达式。
+
 >![](https://github.com/bravegnu/gnu-eprog/blob/master/images/note.png)
 >注意：
 >与`.byte`指令不同，`.equ`指令本身不分配任何内存。它们只是在符号表中创建条目。
@@ -337,7 +349,7 @@ connex板有一个64 MB的RAM，从地址`0xA0000000`开始，其中可以存储
 2. 重定位
 
 在本节中，我们将详细研究这些操作。
-## 6.1符号解析
+## 6.1.符号解析
 在单文件程序中，在生成目标文件时，所有对标签的引用都由汇编器用它们的对应地址替换。但在多文件程序中，如果有对另一个文件中定义的标签的任何引用，则汇编器将这些引用标记为“未解析(unresolved)”。当这些目标文件传递给链接器时，链接器将从其他目标文件确定这些引用的值，并使用正确的值对代码进行调整（patch）。
 
 `sum of array`示例被分成两个文件，以演示链接器执行符号解析。这两个文件将被汇编起来，并检查它们的符号表，以显示未解析引用的存在。
@@ -345,6 +357,7 @@ connex板有一个64 MB的RAM，从地址`0xA0000000`开始，其中可以存储
 文件`sum-sub.s`包含`sum`子程序，文件`main.s`传入所需的参数调用子程序。这些文件的源代码如下所示。
 
 **Listing 4. main.s - Subroutine Invocation**
+
 ```asm
         .text
         b start                 @ Skip over the data
@@ -360,7 +373,9 @@ start:
 
 stop:   b stop
 ```
+
 **Listing 5. sum-sub.s - Subroutine Definition**
+
 ```asm
         @ Args
         @ r0: Start address of array
@@ -378,3 +393,106 @@ loop:   ldrb  r2, [r0], #1      @ r2 = *r0++    ; Get array element
         bne   loop              @    goto loop  ; Loop
         mov   pc, lr            @ pc = lr       ; Return when done
 ```
+
+关于`.global`指令的解释是由必要的。在C中，在函数外部声明的所有变量对其他文件都是可见的，直到明确说明为`static`。在汇编中，所有标签都是`static`的，也称本地（对文件而言），直到明确声明它们应该对其他文件可见，这时就需要使用`.global`指令来修饰。
+
+文件被汇编后，并使用nm命令转储符号表。
+
+	$ arm-none-eabi-as -o main.o main.s
+	$ arm-none-eabi-as -o sum-sub.o sum-sub.s
+	$ arm-none-eabi-nm main.o
+	00000004 t arr
+	00000007 t eoa
+	00000008 t start
+	00000018 t stop
+             U sum
+	$ arm-none-eabi-nm sum-sub.o
+	00000004 t loop
+	00000000 T sum
+
+现在，关注第二列的字母，它指定了符号的类型。`t`表示这个符号在`text`段是定义了的。`u`表示这个符号未定义。大写字母表示符号是`.global`的。
+
+很明显符号`sum`在`sum-sub.o`中定义了,不过在`main.o`中还未解析。当链接器被调用后，符号引用被解析，然后生成可执行文件。
+
+## 6.2.重定位
+重定位是改变标签已分配地址的过程。这还包括调整所有标签的引用地址以使对应上最新分配的地址。重定位主要基于以下两个原因：
+
+1. 段合并
+2. 段布局
+
+要理解重新定位的过程，理解段的概念是必不可少的。
+
+代码和数据有不同的`run-time`需求。例如代码可以放置在只读的存储介质中，数据则要放置在读-写存储介质中。如果代码和数据不混在一起，也许会更合适。为此，程序被分割为段。大多程序至少包含2个段，`.text`段放代码，`.data`段放数据。汇编器指令`.text`和`.data`用于在这两个段间来回切换。
+
+可以把每个段想象成一个桶。当汇编器识别到一个段指令时，它会把紧跟指令的代码/数据放到对应的桶里面。因此，属于特定段的代码/数据的位置是紧挨着的。下面的图显示了汇编器如何将数据重新排列到段中。
+
+**Figure 3. Sections**
+
+![](http://www.bravegnu.org/gnu-eprog/sections.png)
+
+现在我们已经了解了段，让我们看看执行重定位的主要原因。
+
+### 6.2.1.段合并
+当处理多源文件程序时，在每个文件中可能会出现同样名字的段（例如`.text`）。链接器负责将输入文件的段合并到一起放到输出文件对应的段中。默认情况下，拥有同样名字的段会被放置到一起，标签引用的地址也会被调整到对应的新的地址上。
+
+通过查看目标文件和相应的可执行文件的符号表，可以看到段合并的效果。多源文件的`sum of array`程序可以用来阐明段合并。目标文件`main.o`、`sum-sum.o`和可执行文件`sum.elf`的符号表如下所示。
+
+	$ arm-none-eabi-nm main.o
+	00000004 t arr
+	00000007 t eoa
+	00000008 t start
+	00000018 t stop
+	         U sum
+	$ arm-none-eabi-nm sum-sub.o
+	00000004 t loop ❶
+	00000000 T sum
+	$ arm-none-eabi-ld -Ttext=0x0 -o sum.elf main.o sum-sub.o
+	$ arm-none-eabi-nm sum.elf
+	...
+	00000004 t arr
+	00000007 t eoa
+	00000008 t start
+	00000018 t stop
+	00000028 t loop ❷
+	00000024 T sum
+
+
+❶ ❷ `loop`符号在`sum-sub.o`中地址是`0x4`,在`sum.elf`中地址是`0x28`。这是因为`sum-sub.o`的`.text`段恰好放置在`main.o`的`.text`之后。
+
+### 6.2.2.段布局
+当一个程序被汇编后，它的每个段都假定从0地址开始。因此，标签被分配的值是相对于段的起始处的。最后可执行文件生成时，段被放置到某个地址X上。并且所有对该部分中定义的标签的引用都被加上一个X的偏移，因此它们指向新的位置。
+
+每个段在内存中的特定位置的布局，对段中每个标签引用的调整都是由链接器来完成的。
+
+通过查看目标文件的符号表和相应的可执行文件，可以看到段布局的效果。单源文件的`sum of array`程序可以用来说明节的位置。为了更清楚，我们将把`.tex`t段放在地址`0x100`处。
+
+	$ arm-none-eabi-as -o sum.o sum.s
+	$ arm-none-eabi-nm -n sum.o
+	00000000 t entry ❶
+	00000004 t arr
+	00000007 t eoa
+	00000008 t start
+	00000014 t loop
+	00000024 t stop
+	$ arm-none-eabi-ld -Ttext=0x100 -o sum.elf sum.o ❷
+	$ arm-none-eabi-nm -n sum.elf
+	00000100 t entry ❸
+	00000104 t arr
+	00000107 t eoa
+	00000108 t start
+	00000114 t loop
+	00000124 t stop
+	...
+
+
+❶ 在一个段内，标签的地址从0开始分配。
+
+❷ 创建可执行文件时，指定链接器将`.text`段放在地址`0x100`处。
+
+❸ `.text`段中标签的地址被从地址`0x100`处开始重新分配，所有标签引用都被调整反应了这一点。
+
+段合并、段布局的过程如下图所示。
+
+**Figure 4. Section Merging and Placement**
+
+![](http://www.bravegnu.org/gnu-eprog/relocation.png)
