@@ -1039,7 +1039,7 @@ stop:   b     stop
 
 要编译代码，不需要分别调用汇编器、编译器和链接器。gcc足够聪明，可以为我们一步完成。
 
-如前所述，我们将编译并执行[Listing 12, Sum of Array in C](#listing12sum-of-array-in-c)所示的C代码。
+如前所述，我们将编译并执行[Listing 12, Sum of Array in C](#listing-12-sum-of-array-in-c)所示的C代码。
 
 ```shell
 $ arm-none-eabi-gcc -nostdlib -o csum.elf -T csum.lds csum.c startup.s
