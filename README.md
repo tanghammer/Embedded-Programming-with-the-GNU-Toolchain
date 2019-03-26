@@ -1119,12 +1119,19 @@ Jim Huang, Jesus Vicenti, Goodwealth Chu, Jeffrey Antony, Jonathan Grant, David 
 The following great free software tools were used for the construction of the tutorial.
 
 [asciidoc](http://www.methods.co.nz/asciidoc/) for lightweight markup
+
 [xsltproc](http://www.xmlsoft.org/XSLT/xsltproc2.html) for HTML transformation
+
 [docbook-xsl](http://docbook.sourceforge.net/) for the stylesheets
+
 [highlight.js](http://softwaremaniacs.org/soft/highlight/en/) for syntax highlighting
+
 [dia](http://www.gnome.org/projects/dia/) for diagram creation
+
 [GoSquared Arrow Icons](http://www.gosquared.com/liquidicity/archives/611) for the navigation icons
+
 [mercurial](http://www.selenic.com/mercurial/) for version control
+
 [emacs](http://www.gnu.org/software/emacs/) …
 
 
