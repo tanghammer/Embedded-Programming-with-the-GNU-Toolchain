@@ -47,6 +47,21 @@
 * [10.3.只读数据](#103只读数据)
 * [10.4.启动代码](#104启动代码)
 
+[11.使用C库](#11使用c库)
+
+[12.内联汇编](#12内联汇编)
+
+[13.贡献](#13贡献)
+
+[14.Credits](#14credits)
+* [14.1.People](#141people)
+* [14.2.Tools](#142tools)
+
+[附录](#附录)
+* [附录A.ARM编程人员模型](#附录aarm编程人员模型)
+* [附录B.ARM指令集](#附录barm指令集)
+* [附录C.ARM的栈](#附录carm的栈)
+
 # 1.介绍
 GNU工具链越来越多地用于深度嵌入式软件开发。这种类型的软件开发也称为独立C语言编程和裸机C语言编程。独立的C语言编程带来了新的问题，处理这些问题需要对GNU工具链有更深入的理解。GNU工具链的手册提供了关于工具链的优秀信息，但是是从工具链的角度，而不是从问题的角度。不管怎样，手册就是这样写的。其结果是对常见问题的答案分散在各地，GNU工具链的新用户感到困惑。
 
@@ -109,7 +124,7 @@ label:    instruction         @ comment
 
 下面是一个非常简单的ARM汇编程序，实现2个数相加。
 
-**Listing 1. Adding Two Numbers**
+###### Listing 1. Adding Two Numbers
 
 ```asm
         .text
@@ -255,7 +270,7 @@ system_reset|复位系统
 ## 4.1.数组求和
 下面的代码对一个数组求和，并将结果存储在r3中。
 
-**Listing 2. Sum an Array**
+###### Listing 2. Sum an Array
 
 ```asm
         .text
@@ -298,7 +313,7 @@ ARM要求指令出现在32位对齐的内存位置。指令中4个字节中的�
 ## 4.2.字符串长度
 下面的代码计算字符串的长度，并将长度存储在寄存器r1中。
 
-**Listing 3. String Length**
+###### Listing 3. String Length
 
 ```asm
         .text
@@ -347,7 +362,7 @@ stop:   b stop
 
 connex板有一个64 MB的RAM，从地址`0xA0000000`开始，其中可以存储变量。connex板的内存映射如下图所示。
 
-**Figure 1. Memory Map**
+###### Figure 1. Memory Map
 
 ![](http://www.bravegnu.org/gnu-eprog/flash-ram-mm.png)
 
@@ -356,7 +371,7 @@ connex板有一个64 MB的RAM，从地址`0xA0000000`开始，其中可以存储
 # 6.链接器
 当编写一个多源文件的程序时，每个文件被单独汇编为目标文件。链接器将这些目标文件组合起来形成最终的可执行文件。
 
-**Figure 2. Role of the Linker**
+###### Figure 2. Role of the Linker
 
 ![](http://www.bravegnu.org/gnu-eprog/linker.png)
 
@@ -372,7 +387,7 @@ connex板有一个64 MB的RAM，从地址`0xA0000000`开始，其中可以存储
 
 文件`sum-sub.s`包含`sum`子程序，文件`main.s`传入所需的参数调用子程序。这些文件的源代码如下所示。
 
-**Listing 4. main.s - Subroutine Invocation**
+###### Listing 4. main.s - Subroutine Invocation
 
 ```asm
         .text
@@ -390,7 +405,7 @@ start:
 stop:   b stop
 ```
 
-**Listing 5. sum-sub.s - Subroutine Definition**
+###### Listing 5. sum-sub.s - Subroutine Definition
 
 ```asm
         @ Args
@@ -442,7 +457,7 @@ loop:   ldrb  r2, [r0], #1      @ r2 = *r0++    ; Get array element
 
 可以把每个段想象成一个桶。当汇编器识别到一个段指令时，它会把紧跟指令的代码/数据放到对应的桶里面。因此，属于特定段的代码/数据的位置是紧挨着的。下面的图显示了汇编器如何将数据重新排列到段中。
 
-**Figure 3. Sections**
+###### Figure 3. Sections
 
 ![](http://www.bravegnu.org/gnu-eprog/sections.png)
 
@@ -509,14 +524,14 @@ loop:   ldrb  r2, [r0], #1      @ r2 = *r0++    ; Get array element
 
 段合并、段排布的过程如下图所示。
 
-**Figure 4. Section Merging and Placement**
+###### Figure 4. Section Merging and Placement
 
 ![](http://www.bravegnu.org/gnu-eprog/relocation.png)
 
 # 7.链接脚本文件
 如前一节所述，段的合并和段的排布是由链接器完成的。编程人员可以通过一个链接脚本文件控制段如何合并以及它们在内存中的位置。下面是一个非常简单的链接脚本。
 
-**Listing 6. Basic linker script**
+###### Listing 6. Basic linker script
 
 ```c
 SECTIONS { ❶
@@ -535,7 +550,7 @@ SECTIONS { ❶
 
 通过使用通配符*而不是单独指定文件名，可以进一步简化和通用化链接器脚本。
 
-**Listing 7. Wildcard in linker scripts**
+###### Listing 7. Wildcard in linker scripts
 
 ```c
 SECTIONS {
@@ -546,7 +561,7 @@ SECTIONS {
 
 如何程序既包含`.text`段也包含`.data`段，`.data`段的合并和位置可以像下面这样指定。
 
-**Listing 8. Multiple sections in linker scripts**
+###### Listing 8. Multiple sections in linker scripts
 
 ```c
 SECTIONS {
@@ -561,7 +576,7 @@ SECTIONS {
 此处`.text`段被放置到地址`0x00000000`处，`.data`被放置到地址`0x00000400`处。注意，如果位置计数器未分配不同的值，则`.text`和`.data`段会被放置到相邻的存储位置。
 
 # 7.1.链接脚本示例
-为了演示链接器脚本的使用，我们将使用**Listing 8. Multiple sections in linker scripts**中所示的链接器脚本来控制程序的`.text`和`.data`段的排布。为此，我们将使用稍微修改过的`sum of array`程序。代码如下所示。
+为了演示链接器脚本的使用，我们将使用[listing-8-multiple-sections-in-linker-scripts](Listing 8. Multiple sections in linker scripts)中所示的链接器脚本来控制程序的`.text`和`.data`段的排布。为此，我们将使用稍微修改过的`sum of array`程序。代码如下所示。
 
 ```asm
         .data
@@ -607,7 +622,7 @@ $ arm-none-eabi-nm -n sum-data.elf
 
 将`add`程序修改为从`RAM`加载两个值，将它们相加并将结果存储回RAM。两个值和结果存放在`.data`段。
 
-**Listing 9. Add Data in RAM**
+###### Listing 9. Add Data in RAM
 
 ```asm
         .data
@@ -714,6 +729,8 @@ copy:
 
 可以稍微修改链接脚本以提供这些信息。
 
+###### Listing 10. Linker Script with Section Copy Symbols
+
 ```c
 SECTIONS {
         . = 0x00000000;
@@ -739,7 +756,7 @@ SECTIONS {
 
 从Flash复制数据到RAM的add程序如下所示。
 
-**Listing 11. Add Data in RAM (with copy)**
+###### Listing 11. Add Data in RAM (with copy)
 
 ```asm
         .data
@@ -776,7 +793,7 @@ copy:
 stop:   b stop
 ```
 
-程序使用**Listing 10. Linker Script with Section Copy Symbols**中列出的链接脚本进行汇编和链接。程序在Qemu中执行和测试。
+程序使用[Listing 10 Linker Script with Section Copy Symbols](#listing-10-linker-script-with-section-copy-symbols)中列出的链接脚本进行汇编和链接。程序在Qemu中执行和测试。
 
 ```shell
 qemu-system-arm -M connex -pflash flash.bin -nographic -serial /dev/null
@@ -799,7 +816,7 @@ a0000000:         10         30         40          0
 >异常向量具体是几个要看硬件架构，异常向量表是和具体硬件相关的。
 
 
-**Table 1. Exception Vector Addresses**
+###### Table 1. Exception Vector Addresses
 
 Exception|Address
 :-:|:-:
@@ -855,7 +872,7 @@ SECTIONS {
 
 我们将以`sum of array`的C程序为例。在本节结束时，我们将能够执行必要的设置，将控制转移到C代码并执行它。
 
-**Listing 12. Sum of Array in C**
+###### Listing 12. Sum of Array in C
 
 ```c
 static int arr[] = { 1, 10, 4, 5, 6, 7 };
@@ -881,13 +898,13 @@ int main()
 ## 10.1.栈
 C语言使用栈来存储本地（自动）变量，传递参数，存储返回地址等。所以在将控制权交给C代码之前，栈必须正确设置。
 
-栈在ARM架构中是非常灵活的，因为它完全由软件实现。不熟悉ARM架构的可以看看概述[Appendix C, ARM Stacks](http://www.bravegnu.org/gnu-eprog/arm-stacks.html)。
+栈在ARM架构中是非常灵活的，因为它完全由软件实现。不熟悉ARM架构的可以看看概述[附录C.ARM的栈](#附录carm的栈)。
 
 为了确保不同编译器生成的代码具被互操作性（例如链接器的输入目标文件可以是由不同的编译器生成的）,ARM创建了[ARM Architecture Procedure Call Standard (AAPCS)](http://infocenter.arm.com/help/topic/com.arm.doc.ihi0042f/IHI0042F_aapcs.pdf)。用作栈指针的寄存器，栈增长的方向，AAPCS中都有阐述。依据AAPCS,寄存器R13用作栈指针。栈也被规定是满-递减的。
 
 放置全局变量和堆栈的一种方法如下图所示。
 
-**Figure 5. Stack Placement**
+###### Figure 5. Stack Placement
 
 ![](http://www.bravegnu.org/gnu-eprog/stack.png)
 
@@ -915,7 +932,7 @@ GCC将标记为const的全局变量放在一个名为`.rodata`的独立段中。
 由于`.rodata`段的内容不会被修改，所以可以放在Flash中。必须修改链接脚本以适应这种情况。
 
 ## 10.4.启动代码
-现在我们知道了这些先决条件，就能创建链接脚本和启动代码。链接脚本**Listing 10 Linker Script with Section Copy Symbols**修改如下。
+现在我们知道了这些先决条件，就能创建链接脚本和启动代码。链接脚本[Listing 10 Linker Script with Section Copy Symbols](#listing-10-linker-script-with-section-copy-symbols)修改如下。
 
 1. `.bss`段排布
 2. `verctors`段排布
@@ -923,11 +940,11 @@ GCC将标记为const的全局变量放在一个名为`.rodata`的独立段中。
 
 内存中，`.bss段`位于`.data`段之后。`.bss`段的起始和结束符号也都在链接脚本中创建。Flash中`.rodata`段紧跟着`.text`段放置 。下图展示了不同段的排布情况。
 
-**Figure 6. Section Placement**
+###### Figure 6. Section Placement
 
 ![](http://www.bravegnu.org/gnu-eprog/csections.png)
 
-**Listing 13. Linker Script for C code**
+###### Listing 13. Linker Script for C code
 
 ```c
 SECTIONS {
@@ -966,7 +983,7 @@ SECTIONS {
 4. 设置栈指针的代码
 5. 跳转至main的代码
 
-**Listing 14. C Startup Assembly**
+###### Listing 14. C Startup Assembly
 
 ```asm
         .section "vectors"
@@ -1022,13 +1039,13 @@ stop:   b     stop
 
 要编译代码，不需要分别调用汇编器、编译器和链接器。gcc足够聪明，可以为我们一步完成。
 
-如前所述，我们将编译并执行**Listing 12, Sum of Array in C**所示的C代码。
+如前所述，我们将编译并执行[Listing 12, Sum of Array in C](#listing12sum-of-array-in-c)所示的C代码。
 
 ```shell
 $ arm-none-eabi-gcc -nostdlib -o csum.elf -T csum.lds csum.c startup.s
 ```
 
-`-nostdlib`选项指定不链接标准C库。当链接到C库时，需要额外注意一点。在**Section 11, Using the C Library**会讨论。
+`-nostdlib`选项指定不链接标准C库。当链接到C库时，需要额外注意一点。在[11.使用C库](#11使用c库)会讨论。
 
 符号表的转储可以更好地描述这些东西在内存中是如何放置的。
 
@@ -1082,3 +1099,210 @@ a0000010:          6          7
 (qemu) xp /1dw 0xa0000018
 a0000018:         33
 ```
+# 11.使用C库
+未完成
+
+# 12.内联汇编
+未完成
+
+# 13.贡献
+和其他开源项目一样，我们很乐意接受贡献。需要帮助的部分已经用FIXMEs标记。所有的贡献将被适当地记入贡献人员页面。此文档的源代码保存在位于[https://github.com/bravegnu/gnu-eprog](https://github.com/bravegnu/gnu-eprog)。要对项目做出代码贡献，可以在github上fork项目并发送pull请求。
+
+# 14.Credits
+
+## 14.1.People
+
+The original tutorial was written by Vijay Kumar B., <vijaykumar@bravegnu.org>
+Jim Huang, Jesus Vicenti, Goodwealth Chu, Jeffrey Antony, Jonathan Grant, David LeBlanc, reported typos and suggested fixes in the code and text.
+
+## 14.2.Tools
+The following great free software tools were used for the construction of the tutorial.
+
+[asciidoc](http://www.methods.co.nz/asciidoc/) for lightweight markup
+[xsltproc](http://www.xmlsoft.org/XSLT/xsltproc2.html) for HTML transformation
+[docbook-xsl](http://docbook.sourceforge.net/) for the stylesheets
+[highlight.js](http://softwaremaniacs.org/soft/highlight/en/) for syntax highlighting
+[dia](http://www.gnome.org/projects/dia/) for diagram creation
+[GoSquared Arrow Icons](http://www.gosquared.com/liquidicity/archives/611) for the navigation icons
+[mercurial](http://www.selenic.com/mercurial/) for version control
+[emacs](http://www.gnu.org/software/emacs/) …
+
+
+# 附录
+
+## 附录A.ARM编程人员模型
+本节提供了一个简化的ARM编程人员模型。
+
+**寄存器档案**。在ARM处理器中，任何时候都有16个通用寄存器可用。每个寄存器的大小为32位。寄存器称为`Rn`，其中n表示寄存器索引。所有指令对寄存器`R0`到`R13`一视同仁。任何可以在`R0`上执行的操作都可以在寄存器`R1`到`R13`上执行。但是`R14`和`R15`由处理器分配特殊的功能。`R15`是程序计数器，包含要获取的下一条指令的地址。`R14`是链接寄存器，用于在调用子例程时存储返回地址。
+
+>![](http://www.bravegnu.org/gnu-eprog/images/tip.png)
+>**Tip**
+>
+>尽管处理器未分配给R13特殊功能，但是按照惯例，操作系统用它作为栈指针，指向栈顶。
+
+**Current Program Status Register.**当前程序状态寄存器（`CPSR`）是一个专用的32-bit寄存器，包含下列几个域。
+
+1. 条件标识
+2. 中断掩码
+3. 处理器模式
+4. 处理器状态
+
+在本教程提供的示例中，只使用condition flags字段。因此这里只阐述条件标志。
+
+条件标志表示在执行算术和逻辑操作时发生的各种条件。下表给出了各种条件标志及其含义。
+
+###### Table A.1. Condition Flags
+
+标识|含义
+:-:|:-:
+进借位标识`C`|操作导致了进借位
+溢出标识`O`|操作导致溢出
+零标识`Z`|操作结果为0
+负数标识`N`|操作结果为负数
+
+## 附录B.ARM指令集
+ARM处理器有一个强大的指令集，但是这里只讨论理解本教程中的示例所需的子集。
+
+ARM有一个加载、存储架构，这意味着所有算术和逻辑指令只接受寄存器操作数。它们不能直接对内存中的操作数进行操作。独立的指令加载和存储指令用于在寄存器和内存之间移动数据。
+
+在本节中，将阐述以下这类指令
+
+1. 数据处理指令
+2. 分支指令
+3. 加载、存储指令
+
+**数据处理指令**。最常见的数据处理指令列在下表中。
+
+###### Table B.1. Data Processing Instructions
+
+指令|操作|例子
+:-|:-|:-
+mov rd, n|rd = n|mov r7, r5 @ r7 = r5
+add rd, rn, n|rd = rn + n|add r0, r0, #1 @r0 = r0 + 1
+sub rd, rn, n|rd = rn - n|sub r0, r2, r1 @r0 = r2 + r1
+cmp rn, n|rn - n|cmp r1, r2 @r1 - r2
+
+默认情况下，数据处理指令不更新条件标志。如果指令的后缀是s，则指令将更新条件标志。例如，下面的指令添加两个寄存器并更新条件标志。
+
+```asm
+adds r0, r1, r2
+```
+这个规则的一个例外是`cmp`指令。由于`cmp`指令的唯一目的是设置条件标志，所以它不需要`s`后缀来设置标志。
+
+**分支指令**。分支指令导致处理器从不同的地址执行指令。有两条分支指令可用:`b`和`bl`。除了分支，`bl`指令还将返回地址存储在`lr`寄存器中，因此可以用于子例程调用。指令语法如下所示。
+
+```asm
+b label        @ pc = label
+bl label       @ pc = label, lr = addr of next instruction
+```
+
+要从子例程返回，可以使用mov指令，如下所示。
+
+```asm
+mov pc, lr
+```
+
+**条件执行**。大多数其他指令集允许根据条件标志的状态条件执行分支指令。在ARM中，几乎所有指令都可以有条件地执行。
+
+如果对应的条件为真，则执行该指令。如果条件为假，则将该指令转换为`nop`。条件是通过在指令后面附加条件代码助记符来指定的。
+
+助记符|条件
+:-|:-
+EQ|相等
+NE|不等
+CS|进借位标识置位
+CC|进借位标识未置位
+VC|溢出标识未置位
+VS|溢出标识置位
+PL|正
+MI|负
+HI|Higher Than
+HS|Higher or Same
+LO|Lower Than
+LS|Lower or Same
+GT|大于
+GE|大于等于
+LT|小于
+LE|小于等于
+
+在下面的示例中，仅当进借位置位时，指令才将r1移动到r0。
+
+```asm
+MOVCS r0, r1
+```
+**加载存储指令**。加载、存储指令可用于在寄存器和内存之间移动单个数据项。指令语法如下所示。
+
+```asm
+ldr   rd, addressing    ; rd = mem32[addr]
+str   rd, addressing    ; mem32[addr] = rd
+ldrb  rd, addressing    ; rd = mem8[addr]
+strb  rd, addressing    ; mem8[addr] = rd
+```
+`addressing`是由两部分组成的
+
+- 基址寄存器
+- 偏移
+
+基址寄存器可以是任何通用寄存器。偏移寄存器和基址寄存器可以以三种不同的方式交互。
+
+1. 偏移
+
+- 从基址寄存器中添加或减去偏移量以形成地址。`ldr`示例：`ldr rd, [rm, offset]`。
+
+2. 前变址
+
+- 从基址寄存器中添加或减去偏移量以形成地址，寻址完成后将地址写回基址寄存器。`ldr`示例：`ldr rd, [rm, offset]!`
+
+3. 后变址
+
+- 基址寄存器包含要访问的地址，寻址完成后将基址址中添加或减去偏移量并存储在基寄存器中。`ldr`示例：`ldr rd, [rm], offset`
+
+偏移量可以采用以下格式
+1. 立即数
+
+- 偏移量是一个无符号数，它可以与基址寄存器的值相加或相减。常用于访问栈中的结构成员、局部变量。立即数以`#`开头。
+
+2. 寄存器
+
+- 偏移量是通用寄存器中的一个无符号值，它可以与基址寄存器的值相加或相减。常用于访问数组元素。
+
+一些示例
+
+```asm
+ldr  r1, [r0]              ; same as ldr r1, [r0, #0], r1 = mem32[r0]
+ldr  r8, [r3, #4]          ; r8 = mem32[r3 + 4]
+ldr  r12, [r13, #-4]       ; r12 = mem32[r13 - 4]
+strb r10, [r7, -r4]        ; mem8[r7 - r4] = r10
+strb r7, [r6, #-1]!        ; mem8[r6 - 1] = r7, r6 = r6 - 1
+str  r2, [r5], #8          ; mem32[r5] = r2, r5 = r5 + 8
+```
+
+## 附录C.ARM的栈
+堆栈在ARM体系结构中非常灵活，因为完全由软件实现。
+
+**栈指令**。ARM指令集不包含任何特定的栈指令，比如`push`和`pop`。指令集也不强制使用堆栈。`push`和`pop`操作由内存访问指令执行，具有自动增量寻址模式。
+
+**栈指针**。栈指针是指向栈顶部的寄存器。在ARM处理器中，没有专用的栈指针寄存器，任何通用寄存器都可以用作堆栈指针。
+
+**栈类型**。由于栈是由软件来实现的，不同的实现选择会产生不同类型的栈。根据栈的增长方式，有两种类型的栈。
+
+- 递增栈
+
+在push操作时栈指针增加，例如栈向更高的地址增长。
+
+- 递减栈
+- 
+在push操作时栈指针递减，例如栈向更低的地址增长。
+
+
+根据栈指针指向的内容，又可以将栈分为两类。
+
+- 空栈
+
+栈指针指向的位置用于存储下一个存储对象。push操作先在当前位置存储这个值，然后栈指针自增。
+
+- 满栈
+
+栈指针指向的位置是最后一个存储对象。push操作先让栈指针自增，然后在新的位置存储这个值。
+
+一共可以实现四种不同类型的栈——满递增、满递减、空递增和空递减。这四种类型的栈都可以使用寄存器加载存储指令来实现。
